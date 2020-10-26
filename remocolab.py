@@ -120,15 +120,6 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_t
   #apt-get update
   #apt-get upgrade
   my_apt = _MyApt()
-  #Following packages are useless because nvidia kernel modules are already loaded and I cannot remove or update it.
-  #Uninstall them because upgrading them take long time.
-  my_apt.deleteInstalledPkg("nvidia-dkms", "nvidia-kernel-common", "nvidia-kernel-source")
-  my_apt.commit()
-  my_apt.update_upgrade()
-  my_apt.commit()
-
-  subprocess.run(["unminimize"], input = "y\n", check = True, universal_newlines = True)
-
   my_apt.installPkg("openssh-server")
   if mount_gdrive_to:
     my_apt.installPkg("bindfs")
@@ -159,17 +150,7 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_t
                 universal_newlines = True)
   msg += ret.stdout + "\n"
 
-  root_password = secrets.token_urlsafe()
-  user_password = secrets.token_urlsafe()
-  user_name = "colab"
-  msg += "✂️"*24 + "\n"
-  msg += f"root password: {root_password}\n"
-  msg += f"{user_name} password: {user_password}\n"
-  msg += "✂️"*24 + "\n"
-  subprocess.run(["useradd", "-s", "/bin/bash", "-m", user_name])
-  subprocess.run(["adduser", user_name, "sudo"], check = True)
-  subprocess.run(["chpasswd"], input = f"root:{root_password}", universal_newlines = True)
-  subprocess.run(["chpasswd"], input = f"{user_name}:{user_password}", universal_newlines = True)
+  user_name = "root"
   subprocess.run(["service", "ssh", "restart"])
   _set_public_key(user_name, public_key)
 
@@ -180,7 +161,7 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_t
     target_gdrive_dir = (gdrive_root / mount_gdrive_from) if mount_gdrive_from else gdrive_root
     subprocess.run(["bindfs", "-u", user_name, "-g", user_name, target_gdrive_dir, user_gdrive_dir], check = True)
 
-  ssh_common_options =  "-o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
+  ssh_common_options =  "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o VisualHostKey=yes"
 
   if tunnel == "ngrok":
     pyngrok_config = pyngrok.conf.PyngrokConfig(auth_token = ngrok_token, region = ngrok_region)
@@ -220,7 +201,7 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_t
     msg += "✂️"*24 + "\n"
   return msg
 
-def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, is_VNC):
+def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, is_VNC, ngrok_token):
   if check_gpu_available and not _check_gpu_available():
     return (False, "")
 
@@ -244,13 +225,13 @@ def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_
         print("Please specifiy the existing directory path in your Google drive like 'mount_gdrive_from = \"My Drive/somedir\"'")
         return (False, "")
 
-  ngrok_token = None
-
   if tunnel == "ngrok":
-    print("Copy&paste your tunnel authtoken from https://dashboard.ngrok.com/auth")
-    print("(You need to sign up for ngrok and login,)")
-    #Set your ngrok Authtoken.
-    ngrok_token = getpass.getpass()
+    if not ngrok_token:
+      print("---")
+      print("Copy&paste your tunnel authtoken from https://dashboard.ngrok.com/auth")
+      print("(You need to sign up for ngrok and login,)")
+      #Set your ngrok Authtoken.
+      ngrok_token = getpass.getpass()
 
     if not ngrok_region:
       print("Select your ngrok region:")
@@ -265,7 +246,8 @@ def _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_
 
   return (True, _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, mount_gdrive_to, mount_gdrive_from, is_VNC))
 
-def setupSSHD(ngrok_region = None, check_gpu_available = False, tunnel = "ngrok", mount_gdrive_to = None, mount_gdrive_from = None, public_key = None):
+=======
+def setupSSHD(ngrok_token = None, ngrok_region = None, check_gpu_available = False, tunnel = "ngrok", mount_gdrive_to = None, mount_gdrive_from = None, public_key = None):
   s, msg = _setupSSHDMain(public_key, tunnel, ngrok_region, check_gpu_available, mount_gdrive_to, mount_gdrive_from, False)
   print(msg)
 
