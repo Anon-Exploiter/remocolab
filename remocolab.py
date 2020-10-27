@@ -4,6 +4,7 @@ import secrets, json, re
 import IPython.utils.io
 import ipywidgets
 import pyngrok.ngrok, pyngrok.conf
+import os
 
 # https://salsa.debian.org/apt-team/python-apt
 # https://apt-team.pages.debian.net/python-apt/library/index.html
@@ -160,11 +161,13 @@ def _setupSSHDImpl(public_key, tunnel, ngrok_token, ngrok_region, is_VNC):
     hostname = m.group(1)
     port = m.group(2)
     ssh_common_options += f" -p {port}"
+
+    
   elif tunnel == "argotunnel":
-    _download("https://bin.equinox.io/c/VdrWdbjqyF/cloudflared-stable-linux-amd64.tgz", "cloudflared.tgz")
+    os.system("wget https://bin.equinox.io/c/VdrWdbjqyF/cloudflared-stable-linux-amd64.tgz -O cloudflared.tgz")
     shutil.unpack_archive("cloudflared.tgz")
     cfd_proc = subprocess.Popen(
-        ["cloudflared", "tunnel", "--url", "ssh://localhost:22", "--logfile", "cloudflared.log", "--metrics", "localhost:49589"],
+        ["./cloudflared", "tunnel", "--url", "ssh://localhost:22", "--logfile", "cloudflared.log", "--metrics", "localhost:49589"],
         stdout = subprocess.PIPE,
         universal_newlines = True
         )
